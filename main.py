@@ -163,8 +163,8 @@ if __name__ == "__main__":
     # Collect the picture #
     AllMoviePath = GetAllVideoPath(directoryMoviePath)
     
-    # for moviePath in orderedMoviePath :
-    #     GenFrameImage(moviePath,dataDirectoryPath)
+    for moviePath in orderedMoviePath :
+        GenFrameImage(moviePath,dataDirectoryPath)
 
     # Collect the Data #
     
