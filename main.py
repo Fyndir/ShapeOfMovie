@@ -125,7 +125,7 @@ def GetPrimalColor(path):
     return colour
 
 # Recupere Tout les repertoires à partir du path en parametre
-def GetAllDirectory(path):
+def GetAllDirectory(DataDirectoryPath):
     AllMovieDataDir = []
     for file in os.listdir(DataDirectoryPath):
         path=os.path.join(DataDirectoryPath, file)
@@ -136,8 +136,9 @@ def GetAllDirectory(path):
 # Cree unFilm avec les données contenu dans le dossiers du path
 def getFilmFromDataDir(path):
     movieNameArray=os.path.basename(path).split("/")[-1]#Remove the extension
-    movieName = " ".join(movieNameArray)
+    movieName = "".join(movieNameArray)
     monFilm = Film(movieName,[])
+
     for file in os.listdir(path):
         framePath=os.path.join(path, file)
         if(file.endswith((".jpg"))) :    
@@ -162,15 +163,15 @@ if __name__ == "__main__":
     # Collect the picture #
     AllMoviePath = GetAllVideoPath(directoryMoviePath)
     
-    for moviePath in orderedMoviePath :
-        GenFrameImage(moviePath,dataDirectoryPath)
+    # for moviePath in orderedMoviePath :
+    #     GenFrameImage(moviePath,dataDirectoryPath)
 
     # Collect the Data #
     
     AllMovieDataDir = GetAllDirectory(dataDirectoryPath)
 
     for filmDir in AllMovieDataDir:
-        monFilm = getFilmFromDataDir(filmDir)
+        monFilm = getFilmFromDataDir(filmDir)       
         exportFilmOnJSON(monFilm,resultDirectoryPath)      
 
     # Exploit the data
