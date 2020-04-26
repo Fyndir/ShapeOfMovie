@@ -1,0 +1,5 @@
+data/*
+result/*
+utils/__pycache__/
+model/__pycache__/
+result/*
