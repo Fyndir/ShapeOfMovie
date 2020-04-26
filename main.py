@@ -16,7 +16,7 @@ import  json
 from utils.encoder import FilmEncoder
 
 # Genere des .jpg à partir du fichier video passer en parametre
-def GenFramImage(path,dataPath):
+def GenFrameImage(path,dataPath):
     movieNameArray=os.path.basename(path).split(".")[:-1]#Remove the extension
     movieName = " ".join(movieNameArray)
 
@@ -144,36 +144,33 @@ def getFilmFromDataDir(path):
             monFilm.frames.append(Frame(file,GetPrimalColor(framePath)))                
     return monFilm 
 
+# Export l'object film dans le path au format json
+def exportFilmOnJSON(monFilm,resultDirectoryPath):
+     # Store data in a JSON file
+        output_path = os.path.join(resultDirectoryPath,"{}.json".format(monFilm.titre))
+        with open(output_path, "w") as datafile:
+            json_data = json.dumps(monFilm, indent=4, cls=FilmEncoder)
+            datafile.write(json_data)  
+
 if __name__ == "__main__":
     
     # Set the directory path
-    DirectoryMoviePath="/home/fyndir/Vidéos/Movies/"
+    directoryMoviePath="/home/fyndir/Vidéos/Movies/"
     dataDirectoryPath="data/"
     resultDirectoryPath="result/"
 
     # Collect the picture #
-    AllMoviePath = GetAllVideoPath(DirectoryMoviePath)
-
-    print("Liste de tous les fichier video identifiées par le programme ")
+    AllMoviePath = GetAllVideoPath(directoryMoviePath)
     
-    orderedMoviePath = sorted(AllMoviePath)
-    
-    for MoviePath in orderedMoviePath :
-        GenFramImage(MoviePath,dataDirectoryPath)
+    for moviePath in orderedMoviePath :
+        GenFrameImage(moviePath,dataDirectoryPath)
 
     # Collect the Data #
     
     AllMovieDataDir = GetAllDirectory(dataDirectoryPath)
 
     for filmDir in AllMovieDataDir:
-        monFilm = getFilmFromDataDir(filmDir)   
-    
-        # Store data in a JSON file
-        output_path = os.path.join(resultDirectoryPath,"{}.json".format(monFilm.titre))
-        with open(output_path, "w") as datafile:
-            json_data = json.dumps(monFilm, indent=4, cls=FilmEncoder)
-            datafile.write(json_data)  
+        monFilm = getFilmFromDataDir(filmDir)
+        exportFilmOnJSON(monFilm,resultDirectoryPath)      
 
     # Exploit the data
-                        
-
