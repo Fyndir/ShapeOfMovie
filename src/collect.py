@@ -16,7 +16,7 @@ import  json
 from utils.encoder import FilmEncoder
 
 # Genere des .jpg à partir du fichier video passer en parametre
-def GenFrameImage(inputPath,outputPath):
+def GenFrameImage(inputPath,outputPath,distanceBetweenFrame):
     movieNameArray=os.path.basename(inputPath).split(".")[:-1]#Remove the extension
     movieName = " ".join(movieNameArray)
 
@@ -38,7 +38,7 @@ def GenFrameImage(inputPath,outputPath):
     # frame 
     currentframe = 0  
     fps=GetFrameRate(cam)
-    
+ 
     while(True): 
 
         # reading from frame 
@@ -46,11 +46,12 @@ def GenFrameImage(inputPath,outputPath):
     
         if ret: 
             # if video is still left continue creating images 
-            seconde = int(currentframe/fps)
-            name = './{}/{}{}'.format(outputPathName,str(currentframe),".jpg")         
-            # writing the extracted images 
-            cv2.imwrite(name, frame)               
-            print ('Creating...' + name)             
+            seconde = currentframe/fps
+            if((seconde%distanceBetweenFrame)==0):
+                name = './{}/{}{}'.format(outputPathName,str(currentframe),".jpg")         
+                # writing the extracted images 
+                cv2.imwrite(name, frame)               
+                print ('Creating...' + name)             
             currentframe += 1 
 
         else: 
@@ -90,7 +91,7 @@ def GetFrameRate(video):
     return int(fps)
 
 # Recupere la coleur dominante de l'image
-def GetPrimalColor(path):
+def GetMajorColor(path):
     NUM_CLUSTERS = 10
     
     im = Image.open(path)
@@ -99,17 +100,16 @@ def GetPrimalColor(path):
     shape = ar.shape
     ar = ar.reshape(scipy.product(shape[:2]), shape[2]).astype(float)
 
-    print('finding clusters')
+    # finding clusters
     codes, dist = scipy.cluster.vq.kmeans(ar, NUM_CLUSTERS)
-    print('cluster centres:\n', codes)
-
+   
     vecs, dist = scipy.cluster.vq.vq(ar, codes)         # assign codes
     counts, bins = scipy.histogram(vecs, len(codes))    # count occurrences
 
     index_max = scipy.argmax(counts)                    # find most frequent
-    peak = codes[index_max]
-    colour = binascii.hexlify(bytearray(int(c) for c in peak)).decode('ascii')
-    print('most frequent is %s (#%s)' % (peak, colour))
+    peak = codes[index_max]                             # RGB color
+    colour = binascii.hexlify(bytearray(int(c) for c in peak)).decode('ascii') # Hexa color
+   
 
     return colour
 
@@ -131,7 +131,7 @@ def GetFilmFromDataDir(path):
     for file in os.listdir(path):
         framePath=os.path.join(path, file)
         if(file.endswith((".jpg"))) :    
-            monFilm.frames.append(Frame(int(file.replace(".jpg","")),GetPrimalColor(framePath)))                
+            monFilm.frames.append(Frame(int(file.replace(".jpg","")),GetMajorColor(framePath)))                
     return monFilm 
 
 # Export l'object film dans le path au format json
@@ -148,7 +148,7 @@ def Collect(directoryMoviePath,dataDirectoryPath,outputPath):
     AllMoviePath = GetAllVideoPath(directoryMoviePath)
    
     for moviePath in AllMoviePath :
-        GenFrameImage(moviePath,dataDirectoryPath)
+        GenFrameImage(moviePath,dataDirectoryPath,1)
 
     # Collect the Data #
     
