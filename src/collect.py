@@ -90,8 +90,8 @@ def GetFrameRate(video):
 
     return int(fps)
 
-# Recupere la coleur dominante de l'image
-def GetMajorColor(path):
+# Recupere la couleur dominante de l'image
+def GetMajorColors(path):
     NUM_CLUSTERS = 10
     
     im = Image.open(path)
@@ -113,6 +113,28 @@ def GetMajorColor(path):
 
     return colour
 
+# Recupere la moyenne des couleurs de l'image
+def GetAvgColor(path):
+    im = Image.open(path)   
+    ar = np.asarray(im)
+    nbPixel=0
+    rTotal =0
+    gTotal =0
+    bTotal =0
+    for line in ar:
+        for pixel in line:
+            rTotal+=pixel[0]
+            gTotal+=pixel[1]
+            bTotal+=pixel[2]            
+            nbPixel+=1
+    rImage=rTotal/nbPixel
+    gImage=gTotal/nbPixel
+    bImage=bTotal/nbPixel
+
+    peak=[rImage,gImage,bImage]
+    colour = binascii.hexlify(bytearray(int(c) for c in peak)).decode('ascii') # Hexa color
+    return colour
+
 # Recupere Tout les repertoires à partir du path en parametre
 def GetAllDirectory(DataDirectoryPath):
     AllMovieDataDir = []
@@ -122,7 +144,7 @@ def GetAllDirectory(DataDirectoryPath):
             AllMovieDataDir.append(path)
     return AllMovieDataDir
 
-# Cree unFilm avec les données contenu dans le dossiers du path
+# Cree un Film avec les données contenu dans le dossiers du path
 def GetFilmFromDataDir(path):
     movieNameArray=os.path.basename(path).split("/")[-1]#Remove the extension
     movieName = "".join(movieNameArray)
@@ -131,7 +153,7 @@ def GetFilmFromDataDir(path):
     for file in os.listdir(path):
         framePath=os.path.join(path, file)
         if(file.endswith((".jpg"))) :    
-            monFilm.frames.append(Frame(int(file.replace(".jpg","")),GetMajorColor(framePath)))                
+            monFilm.frames.append(Frame(int(file.replace(".jpg","")),GetAvgColor(framePath)))                
     return monFilm 
 
 # Export l'object film dans le path au format json

@@ -1,5 +1,6 @@
 
 from src.collect import Collect
+from src.collect import GetAvgColor
 from src.exploit import Exploit
 
 if __name__ == "__main__":
