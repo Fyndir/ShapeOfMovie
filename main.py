@@ -10,7 +10,7 @@ if __name__ == "__main__":
     dataDirectoryPath="data/"
     outputPath="result/"
 
-    #Collect(directoryMoviePath,dataDirectoryPath,outputPath)
+    Collect(directoryMoviePath,dataDirectoryPath,outputPath)
     Exploit(directoryMoviePath,dataDirectoryPath,outputPath)     
 
     # Exploit the data
