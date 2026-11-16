@@ -4,6 +4,8 @@
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 
+**🌐 Démo en ligne : https://fyndir.github.io/ShapeOfMovie/**
+
 **Résumer un film entier en une seule image.** Shape Of Movie échantillonne une image par seconde, la réduit à une couleur, puis aligne toutes ces couleurs dans l'ordre chronologique : l'ambiance, les scènes de nuit, les changements de décor apparaissent d'un coup d'œil.
 
 ![Galerie](docs/images/gallery.png)
@@ -26,6 +28,7 @@
 | 🔌 **API REST** | les mêmes fonctions en JSON, documentées automatiquement (`/docs`). |
 | 📋 **Logs** | console et fichier, niveau réglable, pour la CLI comme pour le serveur. |
 | 🐳 **Docker** | une image prête à déployer, ffmpeg inclus. |
+| 📦 **Site statique** | une vitrine en lecture seule, hébergeable gratuitement (GitHub Pages…). |
 
 ---
 
@@ -114,6 +117,21 @@ La documentation interactive est servie sur `/docs`.
 ```bash
 curl -F file=@"Pulp Fiction.mkv" -F method=linear localhost:8000/api/analyses
 ```
+
+---
+
+## 📦 Site statique (GitHub Pages)
+
+GitHub Pages ne sert que des fichiers statiques : il ne peut pas faire tourner le serveur, donc ni l'envoi de vidéos ni l'analyse. La commande `site` produit à la place une **vitrine en lecture seule** à partir d'analyses existantes. On y retrouve la galerie, les pages de films avec la timeline interactive, la palette et les rendus (pré-calculés), avec le même design que l'application.
+
+```bash
+shapeofmovie site shapes/ -o site/ --base-path /ShapeOfMovie/
+```
+
+- Tous les liens sont relatifs : le site fonctionne à la racine d'un domaine comme dans un sous-dossier.
+- `--base-path` ne sert qu'à la page 404.
+
+À chaque push sur `master`, le workflow [`pages.yml`](.github/workflows/pages.yml) génère le site à partir de [`examples/mean`](examples/mean) et le publie sur https://fyndir.github.io/ShapeOfMovie/. Pour l'activer : **Settings → Pages → Source : GitHub Actions** (une seule fois).
 
 ---
 
@@ -240,7 +258,8 @@ src/shapeofmovie/
 ├── logs.py      # configuration des logs (console + fichier)
 ├── models.py    # MovieShape + lecture/écriture JSON (compatible v1)
 ├── render.py    # MovieShape → image (barcode, vertical, ring)
-├── cli.py       # commandes `analyze`, `render` et `serve`
+├── site.py      # export du site statique (+ site_templates/)
+├── cli.py       # commandes `analyze`, `render`, `serve` et `site`
 └── web/
     ├── app.py       # FastAPI : pages HTML et API JSON
     ├── jobs.py      # file d'analyses en arrière-plan
@@ -269,7 +288,8 @@ Les tests fabriquent de vraies vidéos avec ffmpeg (2 s rouge, 2 s vert, 2 s ble
 - **moteur et CLI** : couleurs retrouvées pour chaque méthode, `analyze` puis `render` de bout en bout ;
 - **logs** : fichier, niveaux, messages de l'analyse et du cycle de vie des tâches web ;
 - **API** : envoi, suivi de la tâche, rendus, suppression, refus des fichiers invalides, trop gros ou corrompus, protection contre les identifiants malveillants ;
-- **navigateur** (Playwright + Chromium, sur le vrai serveur) : envoi par le formulaire, progression, rafraîchissement de la galerie, survol de la timeline, changement de style, suppression, message d'erreur.
+- **navigateur** (Playwright + Chromium, sur le vrai serveur) : envoi par le formulaire, progression, rafraîchissement de la galerie, survol de la timeline, changement de style, suppression, message d'erreur ;
+- **site statique** : généré puis parcouru dans Chromium, servi sous `/ShapeOfMovie/` comme sur GitHub Pages, avec un échec dès qu'une ressource répond en erreur.
 
 Les captures d'écran de ce README sont prises par le même outillage, sur le vrai serveur.
 
@@ -280,6 +300,8 @@ La CI GitHub Actions lance à chaque push et pull request :
 4. **build** : construction du paquet (wheel + sdist), installation dans un environnement neuf et test de fumée ;
 5. **docker** : construction de l'image, démarrage du conteneur et vérification qu'il répond.
 
+Un second workflow, **GitHub Pages**, publie le site statique à chaque push sur `master`.
+
 ---
 
 ## 🗺️ Feuille de route
@@ -287,6 +309,7 @@ La CI GitHub Actions lance à chaque push et pull request :
 - [x] **v2 : moteur réécrit** (ffmpeg, numpy, 4 méthodes, 3 styles, CLI, tests, CI)
 - [x] **Application web** (FastAPI + Jinja + HTMX) : envoi de vidéos, progression en direct, galerie, timeline interactive, palette, rendus, API REST
 - [x] **Image Docker**
+- [x] **Vitrine statique sur GitHub Pages**
 - [ ] **Intégration Jellyfin** : connexion avec son compte Jellyfin, import de la bibliothèque, analyse automatique des nouveaux films
 - [ ] **Jeu « Devine le film »** : retrouver un film de sa bibliothèque à partir de sa forme, avec des indices progressifs
 - [ ] Déploiement en ligne à côté de Jellyfin
