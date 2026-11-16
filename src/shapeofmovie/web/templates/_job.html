@@ -1,0 +1,23 @@
+<div class="job job-{{ job.status }}" id="job-{{ job.id }}" data-testid="job"
+     {% if not job.finished %}hx-get="/jobs/{{ job.id }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+  <div class="job-head">
+    <strong>{{ job.title }}</strong>
+    <span class="badge">
+      {% if job.status == "queued" %}En attente
+      {% elif job.status == "running" %}Analyse… {{ job.percent }} %
+      {% elif job.status == "done" %}Terminé
+      {% else %}Échec{% endif %}
+    </span>
+  </div>
+  {% if job.status == "error" %}
+    <p class="error">{{ job.error }}</p>
+  {% elif job.status == "done" %}
+    <a class="btn" href="/movies/{{ job.movie_id }}">Voir le résultat →</a>
+  {% else %}
+    <progress max="100" value="{{ job.percent }}"></progress>
+    <span class="muted">
+      {% if job.total %}{{ job.done }} / {{ job.total }} échantillons{% endif %}
+      {% if job.eta_seconds is not none %} · reste ~{{ job.eta_seconds|duration }}{% endif %}
+    </span>
+  {% endif %}
+</div>

@@ -1,0 +1,9 @@
+{% set w, h = (900, 900) if style == "ring" else ((480, 800) if style == "vertical" else (1600, 400)) %}
+<figure class="preview preview-{{ style }}">
+  <img src="/movies/{{ movie_id }}/image.png?style={{ style }}&width={{ w }}&height={{ h }}&smooth={{ smooth }}"
+       alt="Rendu {{ style }}" data-testid="preview-image">
+</figure>
+<div class="downloads">
+  <a class="btn" href="/movies/{{ movie_id }}/image.png?style={{ style }}&width={{ w * 2 }}&height={{ h * 2 }}&smooth={{ smooth }}&download=1">Télécharger le PNG</a>
+  <a class="btn ghost" href="/movies/{{ movie_id }}/shape.json?download=1">Données JSON</a>
+</div>

@@ -1,0 +1,16 @@
+<h2>Galerie <span class="count">{{ movies|length }}</span></h2>
+{% if movies %}
+<div class="grid">
+  {% for m in movies %}
+  <a class="card" href="/movies/{{ m.id }}" data-testid="movie-card">
+    <img src="/movies/{{ m.id }}/image.png?width=640&height=160&smooth=5" alt="Signature de {{ m.title }}" loading="lazy" width="640" height="160">
+    <div class="card-body">
+      <strong>{{ m.title }}</strong>
+      <span class="muted">{{ m.duration|duration }} · {{ methods.get(m.method, m.method) }}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty">Aucun film pour l'instant. Envoie une première vidéo ci-dessus.</p>
+{% endif %}

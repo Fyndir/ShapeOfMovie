@@ -8,7 +8,7 @@
 
 ![Galerie](docs/images/gallery.png)
 
-> Projet né en DUT en 2020, entièrement réécrit en 2026. Prochaines étapes : une interface web connectée à Jellyfin et un jeu « devine le film » (voir la [feuille de route](#-feuille-de-route)).
+> Projet né en DUT en 2020, entièrement réécrit en 2026. Il s'utilise en **ligne de commande** ou via une **interface web**. Prochaines étapes : la connexion à Jellyfin et un jeu « devine le film » (voir la [feuille de route](#-feuille-de-route)).
 
 ---
 
@@ -22,6 +22,9 @@
 | 🖼️ **3 styles de rendu** | code-barres horizontal, bandes verticales, anneau. Taille libre et lissage optionnel. |
 | 💾 **Format JSON léger** | une couleur hexadécimale par échantillon + métadonnées. Les fichiers de la version 2020 restent lisibles. |
 | 🔁 **Reprise sûre** | les films déjà analysés sont ignorés ; un fichier n'est écrit qu'une fois l'analyse terminée. |
+| 🌐 **Interface web** | envoi de vidéos, analyse en arrière-plan avec progression en direct, galerie, timeline interactive, palette, export PNG/JSON. |
+| 🔌 **API REST** | les mêmes fonctions en JSON, documentées automatiquement (`/docs`). |
+| 🐳 **Docker** | une image prête à déployer, ffmpeg inclus. |
 
 ---
 
@@ -32,10 +35,82 @@ Prérequis : Python ≥ 3.11 et [ffmpeg](https://ffmpeg.org/download.html) dans 
 ```bash
 git clone https://github.com/Fyndir/ShapeOfMovie.git
 cd ShapeOfMovie
-pip install -e ".[kmeans]"     # [kmeans] ajoute la méthode "dominant" (scikit-learn)
+pip install -e ".[kmeans,web]"  # [kmeans] : méthode "dominant" · [web] : interface web
 ```
 
-## 🛠️ Utilisation
+Ou directement avec Docker (ffmpeg inclus) :
+
+```bash
+docker build -t shapeofmovie .
+docker run -d -p 8000:8000 -v som-data:/data shapeofmovie
+```
+
+## 🌐 Interface web
+
+```bash
+shapeofmovie serve --port 8000 --data ./data
+```
+
+Puis ouvrir http://127.0.0.1:8000.
+
+### Accueil : envoyer une vidéo
+
+On glisse une vidéo (ou on clique pour la choisir), on choisit éventuellement un titre, une méthode et l'intervalle d'échantillonnage. Une barre suit l'envoi du fichier, puis l'analyse tourne en arrière-plan : progression, nombre d'échantillons et temps restant se mettent à jour toutes les secondes. Plusieurs analyses peuvent être en file d'attente. **La vidéo est supprimée du serveur dès que l'analyse est finie** : seule sa signature (quelques dizaines de Ko) est conservée.
+
+![Accueil avec une analyse en cours](docs/screenshots/home.png)
+
+### Galerie
+
+Chaque film analysé apparaît dans la galerie, qui se met à jour seule quand une analyse se termine.
+
+![Galerie](docs/screenshots/gallery.png)
+
+### Page d'un film
+
+- **Timeline interactive** : on survole la bande pour lire l'instant exact et la couleur à ce moment.
+- **Palette** : les 6 couleurs qui résument le mieux le film.
+- **Rendu** : choix du style et du lissage avec aperçu immédiat, téléchargement en PNG haute définition ou des données en JSON.
+- Suppression du film.
+
+![Page d'un film](docs/screenshots/movie.png)
+
+![Rendu en anneau avec lissage](docs/screenshots/render.png)
+
+### Configuration
+
+Variables d'environnement, toutes facultatives :
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `SOM_DATA_DIR` | `./data` | dossier des analyses (`shapes/`) et des envois en cours (`uploads/`) |
+| `SOM_MAX_UPLOAD_MB` | `20000` | taille maximale d'une vidéo, en Mo |
+| `SOM_WORKERS` | `1` | nombre d'analyses en parallèle |
+| `SOM_DEFAULT_METHOD` | `linear` | méthode sélectionnée par défaut |
+| `SOM_DEFAULT_STEP` | `1.0` | intervalle par défaut, en secondes |
+
+> Aucune authentification pour l'instant : à exposer derrière un reverse proxy protégé (ou à garder sur le réseau local) en attendant la connexion via Jellyfin.
+
+### API
+
+La documentation interactive est servie sur `/docs`.
+
+| Méthode | Route | Rôle |
+|---|---|---|
+| `POST` | `/api/analyses` | envoie une vidéo (`file`, `title`, `method`, `step`) → tâche `202` |
+| `GET` | `/api/jobs/{id}` | état d'une tâche : `queued`, `running`, `done`, `error`, avancement |
+| `GET` | `/api/movies` | liste des films analysés |
+| `GET` | `/api/movies/{id}` | détail d'un film, palette et couleurs |
+| `GET` | `/movies/{id}/image.png` | rendu (`style`, `width`, `height`, `smooth`) |
+| `GET` | `/movies/{id}/shape.json` | données brutes |
+| `DELETE` | `/movies/{id}` | supprime un film |
+
+```bash
+curl -F file=@"Pulp Fiction.mkv" -F method=linear localhost:8000/api/analyses
+```
+
+---
+
+## 🛠️ Ligne de commande
 
 Le travail se fait en deux temps : **analyser** les vidéos (long, une seule fois) puis **dessiner** autant de rendus qu'on veut à partir des JSON (instantané).
 
@@ -121,7 +196,7 @@ render(shape, style="ring", width=800).save("pulp.png")
 }
 ```
 
-L'échantillon `i` correspond à l'instant `i × step` secondes. `meta` est libre (il accueillera par exemple l'identifiant Jellyfin). Les dix analyses d'origine sont fournies dans [`examples/`](examples/).
+L'échantillon `i` correspond à l'instant `i × step` secondes. `meta` est libre (il accueillera par exemple l'identifiant Jellyfin). Les dix analyses d'origine sont fournies dans [`examples/`](examples/). Leur pas est de 0,959 s et non 1 s : la version de 2020 arrondissait 23,976 images/s à 23.
 
 ---
 
@@ -134,36 +209,55 @@ src/shapeofmovie/
 ├── analyze.py   # pipeline vidéo → MovieShape, avec suivi de progression
 ├── models.py    # MovieShape + lecture/écriture JSON (compatible v1)
 ├── render.py    # MovieShape → image (barcode, vertical, ring)
-└── cli.py       # commandes `analyze` et `render`
+├── cli.py       # commandes `analyze`, `render` et `serve`
+└── web/
+    ├── app.py       # FastAPI : pages HTML et API JSON
+    ├── jobs.py      # file d'analyses en arrière-plan
+    ├── store.py     # stockage des analyses (un JSON par film)
+    ├── config.py    # réglages SOM_*
+    ├── templates/   # Jinja + HTMX
+    └── static/      # CSS, htmx, timeline interactive (JS sans framework)
 ```
 
-Le moteur n'a aucune dépendance à une interface : la ligne de commande, et bientôt l'application web, ne font que l'appeler.
+Le moteur n'a aucune dépendance à une interface : la ligne de commande et l'application web ne font que l'appeler. Côté web, tout est rendu par le serveur ; HTMX gère les mises à jour partielles (progression, galerie, aperçu) et un petit script dessine la timeline.
 
 ## 🧪 Développement
 
 ```bash
 pip install -e ".[dev]"
-pytest                               # tests unitaires + bout en bout
+playwright install chromium          # une fois, pour les tests navigateur
+pytest                               # tout : unitaires, API, CLI et navigateur
+pytest -m "not e2e"                  # sans navigateur
 ruff check . && ruff format --check .
 python scripts/build_readme_images.py   # régénère les images de ce README
+python scripts/take_screenshots.py      # régénère les captures d'écran
 ```
 
-Les tests de bout en bout fabriquent une vraie vidéo avec ffmpeg (2 s rouge, 2 s vert, 2 s bleu), la passent dans la ligne de commande complète et vérifient les couleurs retrouvées et les images produites.
+Les tests fabriquent de vraies vidéos avec ffmpeg (2 s rouge, 2 s vert, 2 s bleu) et vérifient le résultat à chaque niveau :
+
+- **moteur et CLI** : couleurs retrouvées pour chaque méthode, `analyze` puis `render` de bout en bout ;
+- **API** : envoi, suivi de la tâche, rendus, suppression, refus des fichiers invalides, trop gros ou corrompus, protection contre les identifiants malveillants ;
+- **navigateur** (Playwright + Chromium, sur le vrai serveur) : envoi par le formulaire, progression, rafraîchissement de la galerie, survol de la timeline, changement de style, suppression, message d'erreur.
+
+Les captures d'écran de ce README sont prises par le même outillage, sur le vrai serveur.
 
 La CI GitHub Actions lance à chaque push et pull request :
 1. **lint** : ruff (règles + formatage) ;
-2. **test** : la suite complète sur Python 3.11, 3.12 et 3.13, puis la régénération des images du README ;
-3. **build** : construction du paquet (wheel + sdist), installation dans un environnement neuf et test de fumée de la commande.
+2. **test** : unitaires, API et CLI sur Python 3.11, 3.12 et 3.13, puis la régénération des images du README ;
+3. **e2e** : les tests navigateur, puis les captures d'écran (récupérables dans les artefacts, avec les traces Playwright en cas d'échec) ;
+4. **build** : construction du paquet (wheel + sdist), installation dans un environnement neuf et test de fumée ;
+5. **docker** : construction de l'image, démarrage du conteneur et vérification qu'il répond.
 
 ---
 
 ## 🗺️ Feuille de route
 
 - [x] **v2 : moteur réécrit** (ffmpeg, numpy, 4 méthodes, 3 styles, CLI, tests, CI)
-- [ ] **Application web** (FastAPI + Jinja + HTMX) : galerie, page par film avec survol de la timeline, lancement d'analyses avec progression en direct
+- [x] **Application web** (FastAPI + Jinja + HTMX) : envoi de vidéos, progression en direct, galerie, timeline interactive, palette, rendus, API REST
+- [x] **Image Docker**
 - [ ] **Intégration Jellyfin** : connexion avec son compte Jellyfin, import de la bibliothèque, analyse automatique des nouveaux films
 - [ ] **Jeu « Devine le film »** : retrouver un film de sa bibliothèque à partir de sa forme, avec des indices progressifs
-- [ ] Image Docker et déploiement à côté de Jellyfin
+- [ ] Déploiement en ligne à côté de Jellyfin
 
 ## 📜 Licence
 

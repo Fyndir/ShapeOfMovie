@@ -74,6 +74,21 @@ def cmd_render(args: argparse.Namespace) -> int:
     return 0 if files else 1
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+
+        from shapeofmovie.web import Settings, create_app
+    except ImportError:
+        print("the web interface needs: pip install shapeofmovie[web]", file=sys.stderr)
+        return 1
+    base = Settings.from_env()
+    settings = Settings(**{**base.__dict__, "data_dir": args.data or base.data_dir})
+    print(f"Shape Of Movie on http://{args.host}:{args.port} (data: {settings.data_dir.resolve()})")
+    uvicorn.run(create_app(settings), host=args.host, port=args.port, log_level="info")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="shapeofmovie", description=__doc__.split("\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -94,6 +109,12 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--height", type=int, default=1080)
     r.add_argument("--smooth", type=int, default=0, help="moving-average window, in samples")
     r.set_defaults(func=cmd_render)
+
+    w = sub.add_parser("serve", help="start the web interface")
+    w.add_argument("--host", default="127.0.0.1")
+    w.add_argument("--port", type=int, default=8000)
+    w.add_argument("--data", type=Path, help="data folder (default: $SOM_DATA_DIR or ./data)")
+    w.set_defaults(func=cmd_serve)
     return parser
 
 
