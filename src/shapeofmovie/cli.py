@@ -79,6 +79,21 @@ def cmd_render(args: argparse.Namespace) -> int:
     return 0 if files else 1
 
 
+def cmd_site(args: argparse.Namespace) -> int:
+    try:
+        from shapeofmovie.site import build_site
+    except ImportError:
+        print("the site export needs: pip install shapeofmovie[web]", file=sys.stderr)
+        return 1
+    files = _expand(args.paths, {".json"})
+    if not files:
+        print("no JSON file found", file=sys.stderr)
+        return 1
+    ids = build_site(files, args.output, title=args.title, smooth=args.smooth, base_path=args.base_path)
+    print(f"{len(ids)} movies -> {args.output}/index.html")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     try:
         import uvicorn
@@ -116,6 +131,14 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--height", type=int, default=1080)
     r.add_argument("--smooth", type=int, default=0, help="moving-average window, in samples")
     r.set_defaults(func=cmd_render)
+
+    st = sub.add_parser("site", help="export a static showcase site (GitHub Pages…)")
+    st.add_argument("paths", nargs="+", type=Path, help="JSON files or folders")
+    st.add_argument("-o", "--output", type=Path, default=Path("site"))
+    st.add_argument("--title", default="Shape Of Movie")
+    st.add_argument("--smooth", type=int, default=5)
+    st.add_argument("--base-path", default="/", help='URL prefix, e.g. "/ShapeOfMovie/" for a project page')
+    st.set_defaults(func=cmd_site)
 
     w = sub.add_parser("serve", help="start the web interface")
     w.add_argument("--host", default="127.0.0.1")

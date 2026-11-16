@@ -97,3 +97,34 @@ jobs:
           curl -fs localhost:8000/ | grep -q "Un film entier"
           docker exec som ffmpeg -version | head -1
           docker rm -f som
+
+  # Static showcase on GitHub Pages: only from master, and only once every test
+  # (including the browser end-to-end ones) and the builds have passed.
+  pages:
+    needs: [lint, test, e2e, build, docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install ".[web]"
+      - name: Build the static site
+        run: shapeofmovie site examples/mean -o _site --base-path "/${{ github.event.repository.name }}/"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

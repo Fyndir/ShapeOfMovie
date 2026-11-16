@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ movie.title }} · {{ site_title }}{% endblock %}
+{% block content %}
+<a href="{{ root }}#gallery" class="back">← Galerie</a>
+<section class="movie-head">
+  <h1>{{ movie.title }}</h1>
+  <dl class="facts">
+    <div><dt>Durée</dt><dd>{{ movie.duration|duration }}</dd></div>
+    <div><dt>Échantillons</dt><dd>{{ movie.samples }}</dd></div>
+    <div><dt>Intervalle</dt><dd>{% if movie.step %}{{ "%.2f"|format(movie.step) }} s{% else %}?{% endif %}</dd></div>
+    <div><dt>Méthode</dt><dd>{{ methods.get(movie.method, movie.method) }}</dd></div>
+  </dl>
+</section>
+
+<section class="panel">
+  <h2>Timeline</h2>
+  <p class="muted">Survole la bande pour voir l'instant et la couleur.</p>
+  <div class="timeline" id="timeline" data-src="shape.json" data-testid="timeline">
+    <canvas></canvas>
+    <div class="cursor" hidden></div>
+    <div class="tooltip" hidden><span class="swatch"></span><span class="tt-text"></span></div>
+  </div>
+  <div class="timeline-scale"><span>0:00</span><span>{{ movie.duration|duration }}</span></div>
+</section>
+
+<section class="panel">
+  <h2>Palette du film</h2>
+  <ul class="palette" data-testid="palette">
+    {% for c in palette %}
+    <li><span style="background:{{ c }}"></span><code>{{ c }}</code></li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>Rendu</h2>
+  <div class="render-controls">
+    <label>Style
+      <select data-testid="style-select" onchange="
+        const fig = document.getElementById('preview');
+        fig.className = 'preview preview-' + this.value;
+        fig.querySelector('img').src = this.value + '.png';
+        document.getElementById('download').href = this.value + '.png';">
+        {% for key, label in styles.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <figure class="preview preview-barcode" id="preview">
+    <img src="barcode.png" alt="Rendu de {{ movie.title }}" data-testid="preview-image">
+  </figure>
+  <div class="downloads">
+    <a class="btn" id="download" href="barcode.png" download>Télécharger le PNG</a>
+    <a class="btn ghost" href="shape.json" download="{{ movie.id }}.json">Données JSON</a>
+  </div>
+</section>
+{% endblock %}

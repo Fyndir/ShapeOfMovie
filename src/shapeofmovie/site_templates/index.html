@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Un film entier, en une seule image.</h1>
+  <p class="lead">Chaque seconde du film devient une bande de couleur. Choisis un film pour explorer sa timeline, sa palette et ses rendus.</p>
+</section>
+
+<section id="gallery" class="gallery-section">
+  <h2>Galerie <span class="count">{{ movies|length }}</span></h2>
+  {% if movies %}
+  <div class="grid">
+    {% for m in movies %}
+    <a class="card" href="movies/{{ m.id }}/" data-testid="movie-card">
+      <img src="movies/{{ m.id }}/card.png" alt="Signature de {{ m.title }}" loading="lazy" width="640" height="160">
+      <div class="card-body">
+        <strong>{{ m.title }}</strong>
+        <span class="muted">{{ m.duration|duration }} · {{ methods.get(m.method, m.method) }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">Aucun film dans cette galerie.</p>
+  {% endif %}
+</section>
+{% endblock %}
