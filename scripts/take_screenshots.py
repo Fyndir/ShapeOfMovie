@@ -7,10 +7,13 @@ uploads a generated video to show a running analysis, then captures each page.
 Needs: pip install -e ".[dev]" && playwright install chromium
 """
 
+import functools
+import http.server
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
@@ -20,6 +23,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 from conftest import free_port  # noqa: E402
 
 from shapeofmovie.models import MovieShape  # noqa: E402
+from shapeofmovie.site import build_site  # noqa: E402
 from shapeofmovie.web.store import slugify  # noqa: E402
 
 OUT = ROOT / "docs" / "screenshots"
@@ -126,6 +130,25 @@ def main() -> None:
             )
             page.mouse.move(0, 0)
             page.locator("section.panel").nth(2).screenshot(path=OUT / "render.png")
+
+            # static site, served under /ShapeOfMovie/ like GitHub Pages
+            site = tmp / "pages" / "ShapeOfMovie"
+            build_site(sorted((ROOT / "examples" / "mean").glob("*.json")), site, base_path="/ShapeOfMovie/")
+            handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(site.parent))
+            handler.log_message = lambda *a: None
+            pages = http.server.ThreadingHTTPServer(("127.0.0.1", free_port()), handler)
+            threading.Thread(target=pages.serve_forever, daemon=True).start()
+            site_url = f"http://127.0.0.1:{pages.server_port}/ShapeOfMovie/"
+            page.goto(site_url)
+            page.wait_for_load_state("networkidle")
+            page.screenshot(path=OUT / "site-home.png")
+            page.goto(site_url + "movies/summer-wars/")
+            timeline = page.get_by_test_id("timeline")
+            expect(timeline).to_have_attribute("data-ready", "1")
+            box = timeline.bounding_box()
+            page.mouse.move(box["x"] + box["width"] * 0.4, box["y"] + box["height"] / 2)
+            page.screenshot(path=OUT / "site-movie.png")
+            pages.shutdown()
             browser.close()
     finally:
         server.terminate()
