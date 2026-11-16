@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import secrets
 import threading
@@ -9,6 +10,8 @@ import unicodedata
 from pathlib import Path
 
 from shapeofmovie.models import MovieShape
+
+log = logging.getLogger(__name__)
 
 _ID_RE = re.compile(r"^[a-z0-9-]{1,80}$")
 
@@ -38,6 +41,7 @@ class ShapeStore:
         tmp = path.with_suffix(".json.part")
         shape.save(tmp)
         tmp.replace(path)
+        log.info("saved movie %s (%d samples)", movie_id, len(shape))
 
     def get(self, movie_id: str) -> MovieShape:
         path = self._path(movie_id)
@@ -61,6 +65,7 @@ class ShapeStore:
 
     def delete(self, movie_id: str) -> None:
         self._path(movie_id).unlink(missing_ok=False)
+        log.info("deleted movie %s", movie_id)
         with self._lock:
             self._cache.pop(movie_id, None)
 

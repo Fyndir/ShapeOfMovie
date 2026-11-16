@@ -24,6 +24,7 @@
 | 🔁 **Reprise sûre** | les films déjà analysés sont ignorés ; un fichier n'est écrit qu'une fois l'analyse terminée. |
 | 🌐 **Interface web** | envoi de vidéos, analyse en arrière-plan avec progression en direct, galerie, timeline interactive, palette, export PNG/JSON. |
 | 🔌 **API REST** | les mêmes fonctions en JSON, documentées automatiquement (`/docs`). |
+| 📋 **Logs** | console et fichier, niveau réglable, pour la CLI comme pour le serveur. |
 | 🐳 **Docker** | une image prête à déployer, ffmpeg inclus. |
 
 ---
@@ -87,6 +88,8 @@ Variables d'environnement, toutes facultatives :
 | `SOM_WORKERS` | `1` | nombre d'analyses en parallèle |
 | `SOM_DEFAULT_METHOD` | `linear` | méthode sélectionnée par défaut |
 | `SOM_DEFAULT_STEP` | `1.0` | intervalle par défaut, en secondes |
+| `SOM_LOG_LEVEL` | `INFO` | niveau des logs (voir [Logs](#-logs)) |
+| `SOM_LOG_FILE` | | fichier de logs en plus de la console |
 
 > Aucune authentification pour l'instant : à exposer derrière un reverse proxy protégé (ou à garder sur le réseau local) en attendant la connexion via Jellyfin.
 
@@ -181,6 +184,29 @@ render(shape, style="ring", width=800).save("pulp.png")
 
 ---
 
+## 📋 Logs
+
+La ligne de commande et le serveur partagent le même système de logs (module standard `logging`), écrit sur la sortie d'erreur et, en option, dans un fichier qui tourne à 10 Mo (5 fichiers conservés).
+
+| Réglage | Option CLI | Variable |
+|---|---|---|
+| Niveau : `DEBUG`, `INFO` (défaut), `WARNING`, `ERROR` | `--log-level` | `SOM_LOG_LEVEL` |
+| Fichier | `--log-file` | `SOM_LOG_FILE` |
+
+```console
+$ shapeofmovie --log-file logs/som.log analyze "Pulp Fiction.mkv"
+2026-11-16 15:44:11 INFO    shapeofmovie.analyze: analysing Pulp Fiction.mkv (1920x1080, 9264 s) method=mean step=1.0s
+2026-11-16 15:51:52 INFO    shapeofmovie.analyze: analysed Pulp Fiction.mkv: 9265 samples in 461.0 s, 20.1x realtime
+```
+
+Ce qui est journalisé :
+- **analyse** : début (résolution, durée, réglages), fin (nombre d'échantillons, durée, vitesse), commande ffmpeg exacte en `DEBUG`, erreurs ffmpeg ;
+- **serveur** : démarrage, requêtes (journal d'accès uvicorn), envois reçus ou refusés, cycle de vie de chaque analyse (`queued`, `started`, `done` ou erreur avec la trace), films enregistrés et supprimés, requêtes lentes (> 2 s) et erreurs 5xx.
+
+Avec Docker : `docker logs <conteneur>`, ou `-e SOM_LOG_FILE=/data/logs/som.log` pour garder un fichier dans le volume.
+
+---
+
 ## 📄 Format JSON
 
 ```json
@@ -207,6 +233,7 @@ src/shapeofmovie/
 ├── extract.py   # ffprobe / ffmpeg : échantillonnage des images, sans fichier temporaire
 ├── colors.py    # méthodes image → couleur
 ├── analyze.py   # pipeline vidéo → MovieShape, avec suivi de progression
+├── logs.py      # configuration des logs (console + fichier)
 ├── models.py    # MovieShape + lecture/écriture JSON (compatible v1)
 ├── render.py    # MovieShape → image (barcode, vertical, ring)
 ├── cli.py       # commandes `analyze`, `render` et `serve`
@@ -236,6 +263,7 @@ python scripts/take_screenshots.py      # régénère les captures d'écran
 Les tests fabriquent de vraies vidéos avec ffmpeg (2 s rouge, 2 s vert, 2 s bleu) et vérifient le résultat à chaque niveau :
 
 - **moteur et CLI** : couleurs retrouvées pour chaque méthode, `analyze` puis `render` de bout en bout ;
+- **logs** : fichier, niveaux, messages de l'analyse et du cycle de vie des tâches web ;
 - **API** : envoi, suivi de la tâche, rendus, suppression, refus des fichiers invalides, trop gros ou corrompus, protection contre les identifiants malveillants ;
 - **navigateur** (Playwright + Chromium, sur le vrai serveur) : envoi par le formulaire, progression, rafraîchissement de la galerie, survol de la timeline, changement de style, suppression, message d'erreur.
 

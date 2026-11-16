@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
@@ -24,6 +26,7 @@ from shapeofmovie.web.config import Settings
 from shapeofmovie.web.jobs import JobManager
 from shapeofmovie.web.store import ShapeStore
 
+log = logging.getLogger(__name__)
 HERE = Path(__file__).parent
 CHUNK = 1024 * 1024
 METHOD_LABELS = {
@@ -75,12 +78,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        log.info("Shape Of Movie %s starting, data in %s", __version__, settings.data_dir.resolve())
         jobs.cleanup_uploads()
         yield
+        log.info("shutting down")
         jobs.shutdown()
 
     app = FastAPI(title="Shape Of Movie", version=__version__, lifespan=lifespan)
     app.state.settings, app.state.store, app.state.jobs = settings, store, jobs
+
+    @app.middleware("http")
+    async def log_errors(request: Request, call_next):
+        started = time.perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            log.exception("unhandled error on %s %s", request.method, request.url.path)
+            raise
+        if response.status_code >= 500:
+            log.error("%s %s -> %d", request.method, request.url.path, response.status_code)
+        elif time.perf_counter() - started > 2:
+            log.warning(
+                "slow request %s %s (%.1f s)", request.method, request.url.path, time.perf_counter() - started
+            )
+        return response
+
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -109,6 +131,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(422, "l'intervalle doit être compris entre 0,1 et 60 secondes")
         suffix = Path(file.filename or "").suffix.lower()
         if suffix not in VIDEO_EXTENSIONS:
+            log.warning("upload refused, unsupported extension: %s", file.filename)
             raise HTTPException(415, f"format non pris en charge ({suffix or 'sans extension'})")
         limit = settings.max_upload_mb * CHUNK
         if int(request.headers.get("content-length", 0)) > limit + CHUNK:
@@ -126,6 +149,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except BaseException:
             target.unlink(missing_ok=True)
             raise
+        log.info("upload received: %s (%.1f MB)", file.filename, written / 1e6)
         if written == 0:
             target.unlink(missing_ok=True)
             raise HTTPException(422, "fichier vide")

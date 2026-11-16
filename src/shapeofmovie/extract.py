@@ -8,12 +8,15 @@ reads URLs too, the same code works on a local file or a Jellyfin stream.
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import subprocess
 from collections.abc import Iterator
 from dataclasses import dataclass
 
 import numpy as np
+
+log = logging.getLogger(__name__)
 
 VIDEO_EXTENSIONS = {".avi", ".mkv", ".mp4", ".mov", ".m4v", ".webm", ".wmv", ".ts"}
 
@@ -98,6 +101,7 @@ def iter_frames(
         "rawvideo",
         "-",
     ]
+    log.debug("running %s", " ".join(cmd))
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     assert proc.stdout is not None
     try:
@@ -115,4 +119,5 @@ def iter_frames(
         if proc.stderr:
             proc.stderr.close()
     if proc.returncode not in (0, -9):
+        log.warning("ffmpeg exited with %s on %s: %s", proc.returncode, source, stderr.strip()[:500])
         raise FFmpegError(f"ffmpeg failed on {source}: {stderr.strip()}")

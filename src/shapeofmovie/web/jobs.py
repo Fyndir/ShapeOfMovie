@@ -88,6 +88,7 @@ class JobManager:
 
     def cleanup_uploads(self) -> None:
         for leftover in self.uploads_dir.iterdir():
+            log.warning("removing upload left over by a previous run: %s", leftover.name)
             leftover.unlink(missing_ok=True)
 
     def new_upload_path(self, suffix: str) -> Path:
@@ -97,6 +98,7 @@ class JobManager:
         job = Job(id=uuid.uuid4().hex[:12], title=title, filename=filename, method=method, step=step)
         with self._lock:
             self._jobs[job.id] = job
+        log.info("job %s queued: %r (%s, method=%s, step=%s)", job.id, title, filename, method, step)
         self._pool.submit(self._run, job, video)
         return job
 
@@ -114,6 +116,7 @@ class JobManager:
 
     def _run(self, job: Job, video: Path) -> None:
         job.status = Status.RUNNING
+        log.info("job %s started", job.id)
         job.started_at = time.time()
 
         def progress(done: int, total: int | None) -> None:
@@ -129,6 +132,7 @@ class JobManager:
             self.store.save(movie_id, shape)
             job.movie_id = movie_id
             job.status = Status.DONE
+            log.info("job %s done -> movie %s (%.1f s)", job.id, movie_id, time.time() - job.started_at)
         except Exception as exc:  # reported to the user, never crashes the worker
             log.exception("analysis of %s failed", job.filename)
             job.error = str(exc).splitlines()[0][:300] if str(exc) else type(exc).__name__
