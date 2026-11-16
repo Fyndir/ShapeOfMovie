@@ -16,6 +16,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from shapeofmovie.analyze import analyze
+from shapeofmovie.extract import FFmpegError
 from shapeofmovie.web.store import ShapeStore
 
 log = logging.getLogger(__name__)
@@ -125,7 +126,7 @@ class JobManager:
         try:
             shape = analyze(video, method=job.method, step=job.step, title=job.title, progress=progress)
             if len(shape) == 0:
-                raise ValueError("no frame could be read from this file")
+                raise FFmpegError("no frame could be read")
             shape.source = job.filename  # don't leak the server-side temp path
             shape.meta["origin"] = "upload"
             movie_id = self.store.new_id(job.title)
@@ -133,9 +134,14 @@ class JobManager:
             job.movie_id = movie_id
             job.status = Status.DONE
             log.info("job %s done -> movie %s (%.1f s)", job.id, movie_id, time.time() - job.started_at)
-        except Exception as exc:  # reported to the user, never crashes the worker
-            log.exception("analysis of %s failed", job.filename)
-            job.error = str(exc).splitlines()[0][:300] if str(exc) else type(exc).__name__
+        except FFmpegError as exc:
+            # details (with server paths) go to the logs only, the user gets a clear message
+            log.warning("job %s: unreadable video %s: %s", job.id, job.filename, exc)
+            job.error = "Vidéo illisible : le fichier est endommagé ou n'est pas une vidéo."
+            job.status = Status.ERROR
+        except Exception:  # never crashes the worker
+            log.exception("job %s: analysis of %s failed", job.id, job.filename)
+            job.error = "Erreur inattendue pendant l'analyse (détails dans les logs du serveur)."
             job.status = Status.ERROR
         finally:
             job.finished_at = time.time()

@@ -89,6 +89,24 @@ def main() -> None:
             page.evaluate("window.scrollTo(0, 0)")
             page.screenshot(path=OUT / "home.png")
 
+            # error cases: refused file type and corrupted video
+            all_finished = (
+                "[...document.querySelectorAll('[data-testid=job]')].every(j => !j.hasAttribute('hx-get'))"
+            )
+            page.wait_for_function(f"() => {all_finished}", timeout=120_000)
+            bad_txt, bad_mp4 = tmp / "notes.txt", tmp / "Fichier abimé.mp4"
+            bad_txt.write_text("not a video")
+            bad_mp4.write_bytes(b"\x00" * 4096)
+            for bad in (bad_mp4, bad_txt):
+                page.get_by_test_id("file-input").set_input_files(bad)
+                page.get_by_role("button", name="Lancer l'analyse").click()
+                page.wait_for_timeout(300)
+            expect(page.get_by_test_id("upload-error")).to_be_visible()
+            expect(page.locator(".job-error").filter(has_text="Fichier abimé")).to_contain_text(
+                "Échec", timeout=30_000
+            )
+            page.locator("#upload").screenshot(path=OUT / "errors.png")
+
             # movie page with the timeline tooltip
             page.goto(f"{base}/movies/{next(shapes.glob('spider-man*')).stem}")
             page.wait_for_load_state("networkidle")

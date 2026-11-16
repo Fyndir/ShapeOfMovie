@@ -75,7 +75,8 @@ def test_corrupted_video_reports_error(client, tmp_path):
     fake = tmp_path / "broken.mp4"
     fake.write_bytes(b"\x00" * 4096)
     job = wait_job(client, upload(client, fake).json()["id"])
-    assert job["status"] == "error" and job["error"]
+    assert job["status"] == "error"
+    assert job["error"].startswith("Vidéo illisible") and "/" not in job["error"]  # no server path leaked
     assert client.get("/api/movies").json() == []
 
 

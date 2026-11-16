@@ -60,6 +60,10 @@ On glisse une vidéo (ou on clique pour la choisir), on choisit éventuellement 
 
 ![Accueil avec une analyse en cours](docs/screenshots/home.png)
 
+Les erreurs sont signalées clairement : un format refusé est bloqué dès l'envoi, et une vidéo endommagée fait échouer sa tâche sans gêner les autres. Le détail technique reste dans les logs du serveur.
+
+![Envoi refusé et vidéo illisible](docs/screenshots/errors.png)
+
 ### Galerie
 
 Chaque film analysé apparaît dans la galerie, qui se met à jour seule quand une analyse se termine.
