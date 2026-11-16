@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ movie.title }} · Shape Of Movie{% endblock %}
+{% block content %}
+<a href="/#gallery" class="back">← Galerie</a>
+<section class="movie-head">
+  <h1>{{ movie.title }}</h1>
+  <dl class="facts">
+    <div><dt>Durée</dt><dd>{{ movie.duration|duration }}</dd></div>
+    <div><dt>Échantillons</dt><dd>{{ movie.samples }}</dd></div>
+    <div><dt>Intervalle</dt><dd>{% if movie.step %}{{ movie.step }} s{% else %}?{% endif %}</dd></div>
+    <div><dt>Méthode</dt><dd>{{ methods.get(movie.method, movie.method) }}</dd></div>
+  </dl>
+</section>
+
+<section class="panel">
+  <h2>Timeline</h2>
+  <p class="muted">Survole la bande pour voir l'instant et la couleur.</p>
+  <div class="timeline" id="timeline" data-src="/movies/{{ movie.id }}/shape.json" data-testid="timeline">
+    <canvas></canvas>
+    <div class="cursor" hidden></div>
+    <div class="tooltip" hidden><span class="swatch"></span><span class="tt-text"></span></div>
+  </div>
+  <div class="timeline-scale"><span>0:00</span><span>{{ movie.duration|duration }}</span></div>
+</section>
+
+<section class="panel">
+  <h2>Palette du film</h2>
+  <ul class="palette" data-testid="palette">
+    {% for c in palette %}
+    <li><span style="background:{{ c }}"></span><code>{{ c }}</code></li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>Rendu</h2>
+  <form class="render-controls" hx-get="/movies/{{ movie.id }}/preview" hx-target="#preview" hx-trigger="change, input delay:300ms from:input[type=range]">
+    <label>Style
+      <select name="style" data-testid="style-select">
+        {% for key, label in styles.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Lissage <output id="smooth-out">0</output>
+      <input type="range" name="smooth" min="0" max="60" value="0" oninput="this.form.querySelector('#smooth-out').value=this.value">
+    </label>
+  </form>
+  <div id="preview">
+    {% with movie_id=movie.id, style="barcode", smooth=0 %}{% include "_preview.html" %}{% endwith %}
+  </div>
+</section>
+
+<section class="danger">
+  <button class="btn ghost" hx-delete="/movies/{{ movie.id }}" hx-confirm="Supprimer « {{ movie.title }} » ?">Supprimer ce film</button>
+</section>
+{% endblock %}

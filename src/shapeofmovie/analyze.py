@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -10,6 +12,8 @@ import numpy as np
 from shapeofmovie import colors as color_methods
 from shapeofmovie.extract import iter_frames, probe
 from shapeofmovie.models import MovieShape
+
+log = logging.getLogger(__name__)
 
 # progress(done_samples, expected_samples or None)
 ProgressFn = Callable[[int, int | None], None]
@@ -33,6 +37,9 @@ def analyze(
     source = str(source)
     color_fn = color_methods.get(method)
     info = probe(source)
+    log.info("analysing %s (%dx%d, %s s) method=%s step=%ss", source, info.width, info.height,
+             f"{info.duration:.0f}" if info.duration else "?", method, step)  # fmt: skip
+    started = time.perf_counter()
     expected = int(info.duration // step) + 1 if info.duration else None
 
     samples: list[np.ndarray] = []
@@ -41,6 +48,11 @@ def analyze(
         if progress:
             progress(len(samples), expected)
 
+    if progress:
+        progress(len(samples), len(samples))  # final call: 100 %
+    elapsed = time.perf_counter() - started
+    speed = f", {info.duration / elapsed:.1f}x realtime" if info.duration and elapsed else ""
+    log.info("analysed %s: %d samples in %.1f s%s", source, len(samples), elapsed, speed)
     return MovieShape(
         title=title or title_from_source(source),
         colors=np.array(samples, dtype=np.uint8).reshape(-1, 3),

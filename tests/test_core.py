@@ -1,5 +1,4 @@
 import json
-import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -9,31 +8,6 @@ from shapeofmovie import MovieShape, analyze, render
 from shapeofmovie.cli import main
 
 EXAMPLES = Path(__file__).parent.parent / "examples"
-
-
-@pytest.fixture(scope="session")
-def rgb_video(tmp_path_factory) -> Path:
-    """6 s test video: 2 s red, 2 s green, 2 s blue."""
-    path = tmp_path_factory.mktemp("video") / "Red Green Blue.mp4"
-    inputs = []
-    for color in ("red", "green", "blue"):
-        inputs += ["-f", "lavfi", "-i", f"color=c={color}:s=320x180:r=24:d=2"]
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-loglevel",
-            "error",
-            *inputs,
-            "-filter_complex",
-            "[0][1][2]concat=n=3:v=1",
-            "-pix_fmt",
-            "yuv420p",
-            str(path),
-        ],
-        check=True,
-    )
-    return path
 
 
 @pytest.mark.parametrize("method", ["mean", "linear", "median", "dominant"])

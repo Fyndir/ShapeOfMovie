@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Shape Of Movie{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+  <script src="{{ url_for('static', path='htmx.min.js') }}" defer></script>
+  <script src="{{ url_for('static', path='app.js') }}" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="brand" aria-label="Accueil">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>Shape <em>of</em> Movie</span>
+    </a>
+    <nav>
+      <a href="/#upload">Analyser</a>
+      <a href="/#gallery">Galerie</a>
+      <a href="/docs">API</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">Shape Of Movie v{{ version }} · <a href="https://github.com/Fyndir/ShapeOfMovie">GitHub</a></footer>
+</body>
+</html>

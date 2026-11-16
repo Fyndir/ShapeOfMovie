@@ -7,6 +7,7 @@ shapeofmovie render shapes/*.json -o images/ --style ring
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from collections.abc import Iterable
 from pathlib import Path
@@ -14,8 +15,11 @@ from pathlib import Path
 from shapeofmovie.analyze import analyze
 from shapeofmovie.colors import METHODS
 from shapeofmovie.extract import VIDEO_EXTENSIONS, FFmpegError
+from shapeofmovie.logs import setup_logging
 from shapeofmovie.models import MovieShape
 from shapeofmovie.render import STYLES, render
+
+log = logging.getLogger("shapeofmovie")
 
 
 def _expand(paths: Iterable[Path], extensions: set[str]) -> list[Path]:
@@ -31,9 +35,11 @@ def _expand(paths: Iterable[Path], extensions: set[str]) -> list[Path]:
 
 
 def _progress(done: int, total: int | None) -> None:
-    if total:
-        pct = min(100, done * 100 // total)
-        print(f"\r  {pct:3d}% ({done}/{total})", end="", file=sys.stderr, flush=True)
+    if not total or not sys.stderr.isatty():
+        return
+    pct = min(100, done * 100 // total)
+    end = "\n" if done >= total else ""
+    print(f"\r  {pct:3d}% ({done}/{total})", end=end, file=sys.stderr, flush=True)
 
 
 def cmd_analyze(args: argparse.Namespace) -> int:
@@ -48,17 +54,16 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         if target.exists() and not args.force:
             print(f"skip   {video.name} (already analysed, use --force)")
             continue
-        print(f"analyse {video.name}")
         try:
             shape = analyze(video, method=args.method, step=args.step, progress=_progress)
         except (FFmpegError, ValueError) as exc:
-            print(f"\n  error: {exc}", file=sys.stderr)
+            log.error("%s: %s", video.name, exc)
             failures += 1
             continue
         tmp = target.with_suffix(".json.part")  # never leave a half-written file behind
         shape.save(tmp)
         tmp.replace(target)
-        print(f"\n  -> {target} ({len(shape)} samples)")
+        print(f"{video.name} -> {target} ({len(shape)} samples)")
     return 1 if failures else 0
 
 
@@ -74,8 +79,25 @@ def cmd_render(args: argparse.Namespace) -> int:
     return 0 if files else 1
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+
+        from shapeofmovie.web import Settings, create_app
+    except ImportError:
+        print("the web interface needs: pip install shapeofmovie[web]", file=sys.stderr)
+        return 1
+    base = Settings.from_env()
+    settings = Settings(**{**base.__dict__, "data_dir": args.data or base.data_dir})
+    print(f"Shape Of Movie on http://{args.host}:{args.port} (data: {settings.data_dir.resolve()})")
+    uvicorn.run(create_app(settings), host=args.host, port=args.port, log_config=None)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="shapeofmovie", description=__doc__.split("\n")[0])
+    parser.add_argument("--log-level", help="DEBUG, INFO, WARNING, ERROR (default: $SOM_LOG_LEVEL or INFO)")
+    parser.add_argument("--log-file", type=Path, help="also write logs to this file (default: $SOM_LOG_FILE)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     a = sub.add_parser("analyze", help="extract the colour signature of videos into JSON files")
@@ -94,11 +116,18 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--height", type=int, default=1080)
     r.add_argument("--smooth", type=int, default=0, help="moving-average window, in samples")
     r.set_defaults(func=cmd_render)
+
+    w = sub.add_parser("serve", help="start the web interface")
+    w.add_argument("--host", default="127.0.0.1")
+    w.add_argument("--port", type=int, default=8000)
+    w.add_argument("--data", type=Path, help="data folder (default: $SOM_DATA_DIR or ./data)")
+    w.set_defaults(func=cmd_serve)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    setup_logging(args.log_level, args.log_file)
     return args.func(args)
 
 

@@ -12,3 +12,4 @@ build/
 /data/
 /result/
 *.part
+test-results/

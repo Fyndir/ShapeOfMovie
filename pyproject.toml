@@ -16,7 +16,20 @@ dependencies = [
 
 [project.optional-dependencies]
 kmeans = ["scikit-learn>=1.3"]
-dev = ["pytest>=8", "scikit-learn>=1.3", "ruff>=0.6", "build>=1.2"]
+web = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+]
+dev = [
+    "shapeofmovie[kmeans,web]",
+    "pytest>=8",
+    "httpx>=0.27",
+    "pytest-playwright>=0.5",
+    "ruff>=0.6",
+    "build>=1.2",
+]
 
 [project.scripts]
 shapeofmovie = "shapeofmovie.cli:main"
@@ -26,6 +39,7 @@ packages = ["src/shapeofmovie"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["e2e: browser end-to-end tests (need: playwright install chromium)"]
 
 [tool.ruff]
 line-length = 110
