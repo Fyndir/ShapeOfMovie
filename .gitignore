@@ -1,5 +1,14 @@
-data/*
-result/*
-utils/__pycache__/
-model/__pycache__/
-result/*
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+# local outputs
+/shapes/
+/images/
+/data/
+/result/
+*.part
