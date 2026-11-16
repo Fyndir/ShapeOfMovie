@@ -131,7 +131,7 @@ shapeofmovie site shapes/ -o site/ --base-path /ShapeOfMovie/
 - Tous les liens sont relatifs : le site fonctionne à la racine d'un domaine comme dans un sous-dossier.
 - `--base-path` ne sert qu'à la page 404.
 
-À chaque push sur `master`, le workflow [`pages.yml`](.github/workflows/pages.yml) génère le site à partir de [`examples/mean`](examples/mean) et le publie sur https://fyndir.github.io/ShapeOfMovie/. Pour l'activer : **Settings → Pages → Source : GitHub Actions** (une seule fois).
+À chaque push sur `master`, **une fois tous les tests passés (e2e compris)**, la CI génère le site à partir de [`examples/mean`](examples/mean) et le publie sur https://fyndir.github.io/ShapeOfMovie/. Pour l'activer : **Settings → Pages → Source : GitHub Actions** (une seule fois).
 
 ---
 
@@ -300,7 +300,7 @@ La CI GitHub Actions lance à chaque push et pull request :
 4. **build** : construction du paquet (wheel + sdist), installation dans un environnement neuf et test de fumée ;
 5. **docker** : construction de l'image, démarrage du conteneur et vérification qu'il répond.
 
-Un second workflow, **GitHub Pages**, publie le site statique à chaque push sur `master`.
+6. **pages** (sur `master` uniquement) : publication du site statique sur GitHub Pages, **seulement si tous les jobs précédents ont réussi**. Rien n'est publié tant que les tests e2e ne passent pas.
 
 ---
 
